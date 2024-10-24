@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>シンプルクイズ</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background-color: #f0f0f0;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+
+    .container {
+      margin-top: 50px;
+      padding: 20px;
+      background-color: white;
+      max-width: 600px;
+      margin: 50px auto;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      display: none;
+      opacity: 0;
+      transform: translateY(50px);
+      transition: all 0.5s ease-in-out;
+    }
+
+    .active {
+      display: block;
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* 解説ページのスタイル調整 */
+    #selected-answer {
+      margin-bottom: 15px;
+      line-height: 1.8;
+      font-size: 18px;
+      color: #333;
+    }
+
+    #explanation {
+      font-size: 16px;
+      line-height: 1.6;
+      margin: 10px 0 20px 0;
+      padding: 10px;
+      background-color: #f9f9f9;
+      border-radius: 5px;
+    }
+
+    label {
+      display: block;
+      margin: 10px 0;
+      padding: 10px;
+      background-color: #f9f9f9;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s, transform 0.2s;
+    }
+
+    label:hover {
+      background-color: #e0e0e0;
+    }
+
+    .correct {
+      background-color: #4CAF50;
+      color: white;
+      animation: flash-correct 0.5s alternate;
+    }
+
+    .incorrect {
+      background-color: #F44336;
+      color: white;
+      animation: flash-incorrect 0.5s alternate;
+    }
+
+    @keyframes flash-correct {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes flash-incorrect {
+      0% { transform: scale(1); }
+      50% { transform: scale(0.9); }
+      100% { transform: scale(1); }
+    }
+
+    button {
+      display: block;
+      margin: 15px auto;
+      padding: 15px;
+      border: none;
+      background-color: #4CAF50;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+      border-radius: 5px;
+      width: 80%;
+      max-width: 300px;
+    }
+
+    button:hover {
+      background-color: #45a049;
+    }
+
+    .progress-bar {
+      margin-top: 10px;
+      background-color: #e0e0e0;
+      border-radius: 10px;
+      height: 20px;
+      overflow: hidden;
+    }
+
+    .progress {
+      height: 100%;
+      width: 0%;
+      background-color: #4CAF50;
+      transition: width 0.5s ease-in-out;
+    }
+
+    .progress-text {
+      text-align: center;
+      font-weight: bold;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- 問題ページ -->
+<div class="container active" id="question-page">
+  <h1>問題</h1>
+  <div id="question-container"></div>
+  <button id="answer-btn">回答する</button>
+  <div class="progress-bar">
+    <div class="progress" id="progress"></div>
+  </div>
+  <div class="progress-text" id="progress-text">0%</div>
+</div>
+
+<!-- 解説ページ -->
+<div class="container" id="explanation-page">
+  <h1>解説</h1>
+  <div id="selected-answer"></div>
+  <div id="explanation"></div>
+  <button id="next-btn">次の問題へ</button>
+</div>
+
+<!-- 結果ページ -->
+<div class="container" id="result-page">
+  <h1>結果</h1>
+  <div id="result"></div>
+  <div id="comment"></div>
+  <button id="share-btn">スコアをシェアする</button>
+</div>
+
+<script>
+  const quiz1 = [
+    { question: "1+1は？", options: ["1", "2", "3", "4"], answer: 1, explanation: "1+1は2です。" },
+    { question: "富士山の高さは？", options: ["2776m", "3776m", "4776m", "5776m"], answer: 1, explanation: "富士山の標高は3776mです。" }
+  ];
+
+  const quiz2 = [
+    { question: "水は何度で凍る？", options: ["0°C", "10°C", "50°C", "100°C"], answer: 0, explanation: "水は0°Cで凍ります。" },
+    { question: "太陽は東から昇る？", options: ["はい", "いいえ", "場合による", "わからない"], answer: 0, explanation: "太陽は必ず東から昇ります。" }
+  ];
+
+  let selectedQuestions = [];
+  let currentQuestionIndex = 0;
+  let score = 0;
+
+  function getRandomQuestions(quizArray, n) {
+    return quizArray.sort(() => 0.5 - Math.random()).slice(0, n);
+  }
+
+  function displayQuestion() {
+    const question = selectedQuestions[currentQuestionIndex];
+    const questionContainer = document.getElementById("question-container");
+    questionContainer.innerHTML = `
+      <p>${question.question}</p>
+      ${question.options.map((option, i) => `
+        <label>
+          <input type="radio" name="question" value="${i}"> ${option}
+        </label>
+      `).join('')}
+    `;
+    updateProgress();
+  }
+
+  function handleAnswer() {
+    const selectedOption = document.querySelector('input[name="question"]:checked');
+    if (!selectedOption) {
+      alert("選択肢を選んでください");
+      return;
+    }
+
+    const selectedAnswerIndex = parseInt(selectedOption.value);
+    const currentQuestion = selectedQuestions[currentQuestionIndex];
+
+    document.querySelectorAll('label').forEach((label, index) => {
+      if (index === currentQuestion.answer) label.classList.add("correct");
+      if (index === selectedAnswerIndex && index !== currentQuestion.answer) label.classList.add("incorrect");
+    });
+
+    const selectedAnswerContainer = document.getElementById("selected-answer");
+    selectedAnswerContainer.innerHTML = `
+      <p>あなたの答え: ${currentQuestion.options[selectedAnswerIndex]}</p>
+      <p>正解: ${currentQuestion.options[currentQuestion.answer]}</p>
+    `;
+    document.getElementById("explanation").innerText = currentQuestion.explanation;
+
+    if (selectedAnswerIndex === currentQuestion.answer) score++;
+
+    setTimeout(() => switchPage("explanation-page"), 1000);
+  }
+
+  function handleNextQuestion() {
+    currentQuestionIndex++;
+    if (currentQuestionIndex < selectedQuestions.length) {
+      displayQuestion();
+      switchPage("question-page");
+    } else {
+      showResult();
+    }
+  }
+
+  function showResult() {
+    const totalScore = Math.round((score / selectedQuestions.length) * 100);
+    const comment = totalScore >= 80 ? "素晴らしい結果です！" : totalScore >= 50 ? "まあまあの結果です！" : "もっと頑張りましょう！";
+
+    document.getElementById("result").innerText = `あなたのスコア: ${totalScore}点`;
+    document.getElementById("comment").innerText = comment;
+
+    switchPage("result-page");
+  }
+
+  function updateProgress() {
+    const progress = document.getElementById("progress");
+    const progressPercent = Math.round(((currentQuestionIndex + 1) / selectedQuestions.length) * 100);
+    progress.style.width = `${progressPercent}%`;
+    document.getElementById("progress-text").innerText = `${progressPercent}%`;
+  }
+
+  function switchPage(pageId) {
+    document.querySelectorAll(".container").forEach(page => page.classList.remove("active"));
+    document.getElementById(pageId).classList.add("active");
+  }
+
+  window.onload = () => {
+    selectedQuestions = [...getRandomQuestions(quiz1, 2), ...getRandomQuestions(quiz2, 1)];
+    displayQuestion();
+  };
+
+  document.getElementById("answer-btn").addEventListener("click", handleAnswer);
+  document.getElementById("next-btn").addEventListener("click", handleNextQuestion);
+</script>
+
+</body>
+</html>
